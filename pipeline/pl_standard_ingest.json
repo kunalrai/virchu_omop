@@ -1,0 +1,560 @@
+{
+	"name": "pl_standard_ingest",
+	"properties": {
+		"description": "Performs the data ingestion from the source system. Optionally loads several other areas of the data lake.\n\nData can either be ingested into a transient landing area or directly into the persisted raw area.\n\nIt can also optionally be loaded into the curated area. ",
+		"activities": [
+			{
+				"name": "Get_TaskQuery",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SetLimitAuditInfo_Pre",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[etl].[GetTaskQuery]",
+						"storedProcedureParameters": {
+							"ETLExtractDatetime": {
+								"type": "DateTime",
+								"value": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								}
+							},
+							"TaskAuditKey": {
+								"type": "Int32",
+								"value": {
+									"value": "@pipeline().parameters.TaskAuditKey",
+									"type": "Expression"
+								}
+							}
+						},
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_azure_sql_etlcontrol1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "ingest_from_source",
+				"description": "based on the type of source DB, execute the proper \"Copy Data\" activity. This is not parameterized because the sink for a \"Copy Data\" activity cannot be parameterized. Execute the SetLimitAuditInfo stored proc both before and after the Copy Data activity. If this is not an incremental ADFActionKey, then this stored proc will do nothing.",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "Get_TaskQuery",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@activity('Get_Task_Info').output.firstRow.SourceType",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "SQLServer",
+							"activities": [
+								{
+									"name": "pl_standard_ingest_sql_server",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_standard_ingest_sql_server",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"TaskInfo": {
+												"value": "@activity('Get_Task_Info').output",
+												"type": "Expression"
+											},
+											"TaskQuery": {
+												"value": "@activity('Get_TaskQuery').output",
+												"type": "Expression"
+											},
+											"TaskAuditKey": {
+												"value": "@pipeline().parameters.TaskAuditKey",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "SetLimitAuditInfo_Pre",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Get_Task_Info",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[etl].[SetLimitAuditInfo]",
+					"storedProcedureParameters": {
+						"ExecutionSequence": {
+							"value": "Pre",
+							"type": "String"
+						},
+						"TaskAuditKey": {
+							"value": {
+								"value": "@pipeline().parameters.TaskAuditKey",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"TaskKey": {
+							"value": {
+								"value": "@activity('Get_Task_Info').output.firstRow.TaskKey",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "Ls_virchu_control_db",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SetLimitAuditInfo_Post",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "if_dbx_curated_enabled",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[etl].[SetLimitAuditInfo]",
+					"storedProcedureParameters": {
+						"TaskKey": {
+							"value": {
+								"value": "@activity('Get_Task_Info').output.firstRow.TaskKey",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"TaskAuditKey": {
+							"value": {
+								"value": "@pipeline().parameters.TaskAuditKey",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"ExecutionSequence": {
+							"value": "Post",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "Ls_virchu_control_db",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Get_Task_Info",
+				"description": "-description change (adjustment 2)",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[etl].[GetTaskInfo]",
+						"storedProcedureParameters": {
+							"TaskAuditKey": {
+								"type": "Int32",
+								"value": {
+									"value": "@pipeline().parameters.TaskAuditKey",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_azure_sql_etlcontrol1",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "If_LandingAreaToRaw_Enabled",
+				"description": "If both the Landing Area and Persisted Raw locations have been specified, then immediately copy this data that was just landed into the raw area",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ingest_from_source",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@activity('Get_Task_Info').output.firstRow.LoadPersistedRawDataLakeFlag",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "copy_landingarea_to_raw",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "ParquetSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true
+									},
+									"formatSettings": {
+										"type": "ParquetReadSettings"
+									}
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_azure_storage_parquet",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileSystem": {
+											"value": "@activity('Get_Task_Info').output.firstRow.TransientContainer",
+											"type": "Expression"
+										},
+										"Directory": {
+											"value": "@activity('Get_Task_Info').output.firstRow.TransientDirectory",
+											"type": "Expression"
+										},
+										"File": {
+											"value": "@activity('Get_Task_Info').output.firstRow.TransientFileName",
+											"type": "Expression"
+										},
+										"CompressionType": {
+											"value": "@activity('Get_Task_Info').output.firstRow.TransientFileCompressionType",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_azure_storage_parquet",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileSystem": {
+											"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawContainer",
+											"type": "Expression"
+										},
+										"Directory": {
+											"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawDirectory",
+											"type": "Expression"
+										},
+										"File": {
+											"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawFileName",
+											"type": "Expression"
+										},
+										"CompressionType": {
+											"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawFileCompressionType",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "if_dbx_raw_enabled",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "If_LandingAreaToRaw_Enabled",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@bool(activity('Get_Task_Info').output.firstRow.LoadRawHiveDatabaseFlag)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "dbx_raw_notebook",
+							"type": "DatabricksNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebookPath": {
+									"value": "@activity('Get_Task_Info').output.firstRow.DatabricksRawNotebook",
+									"type": "Expression"
+								},
+								"baseParameters": {
+									"SchemaName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.SchemaName",
+										"type": "Expression"
+									},
+									"TableName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TableName",
+										"type": "Expression"
+									},
+									"TransientContainer": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientContainer",
+										"type": "Expression"
+									},
+									"TransientDirectory": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientDirectory",
+										"type": "Expression"
+									},
+									"TransientFilename": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientFilename",
+										"type": "Expression"
+									},
+									"RawContainer": {
+										"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawContainer",
+										"type": "Expression"
+									},
+									"RawDirectory": {
+										"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawDirectory",
+										"type": "Expression"
+									},
+									"RawFilename": {
+										"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawFilename",
+										"type": "Expression"
+									},
+									"RawFileCompressionType": {
+										"value": "@activity('Get_Task_Info').output.firstRow.PersistedRawFileCompressionType",
+										"type": "Expression"
+									},
+									"HiveTimestampName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.HiveTimestampName",
+										"type": "Expression"
+									},
+									"RawDatabaseName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.RawHiveDatabaseName",
+										"type": "Expression"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_virchu_databricks",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "if_dbx_curated_enabled",
+				"type": "IfCondition",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "if_dbx_raw_enabled",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@bool(activity('Get_Task_Info').output.firstRow.LoadCuratedHiveDatabaseFlag)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "dbx_curated_notebook",
+							"type": "DatabricksNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebookPath": {
+									"value": "@activity('Get_Task_Info').output.firstRow.DatabricksCuratedNotebook",
+									"type": "Expression"
+								},
+								"baseParameters": {
+									"SchemaName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.SchemaName",
+										"type": "Expression"
+									},
+									"TableName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TableName",
+										"type": "Expression"
+									},
+									"PrimaryKeyColumnList": {
+										"value": "@concat(activity('Get_Task_Info').output.firstRow.PrimaryKeyColumnList,'')",
+										"type": "Expression"
+									},
+									"TransientContainer": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientContainer",
+										"type": "Expression"
+									},
+									"TransientDirectory": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientDirectory",
+										"type": "Expression"
+									},
+									"TransientFilename": {
+										"value": "@activity('Get_Task_Info').output.firstRow.TransientFilename",
+										"type": "Expression"
+									},
+									"CuratedContainer": {
+										"value": "@activity('Get_Task_Info').output.firstRow.CuratedContainer",
+										"type": "Expression"
+									},
+									"CuratedDirectory": {
+										"value": "@activity('Get_Task_Info').output.firstRow.CuratedDirectory",
+										"type": "Expression"
+									},
+									"CuratedFilename": {
+										"value": "@activity('Get_Task_Info').output.firstRow.CuratedFilename",
+										"type": "Expression"
+									},
+									"CuratedDatabaseName": {
+										"value": "@activity('Get_Task_Info').output.firstRow.CuratedHiveDatabaseName",
+										"type": "Expression"
+									},
+									"PhiColumnList": {
+										"value": "@concat(activity('Get_Task_Info').output.firstRow.PhiColumnList,'')",
+										"type": "Expression"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_virchu_databricks",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"TaskAuditKey": {
+				"type": "int",
+				"defaultValue": 1
+			}
+		},
+		"variables": {
+			"RowsCopied": {
+				"type": "String"
+			},
+			"RowsRead": {
+				"type": "String"
+			},
+			"TaskKey": {
+				"type": "String"
+			},
+			"LoadLandingArea": {
+				"type": "Boolean"
+			},
+			"BytesRead": {
+				"type": "String"
+			},
+			"BytesWritten": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "virchu"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-22T13:28:57Z"
+	}
+}

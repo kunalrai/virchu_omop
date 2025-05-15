@@ -1,0 +1,12 @@
+{
+	"name": "ds_azure_sql_etlcontrol1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Ls_virchu_control_db",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": []
+	}
+}

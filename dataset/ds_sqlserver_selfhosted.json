@@ -1,0 +1,23 @@
+{
+	"name": "ds_sqlserver_selfhosted",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SqlServer1",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"ConnectionSecretName": {
+				"type": "string"
+			},
+			"PasswordSecretName": {
+				"type": "string"
+			},
+			"UsernameSecretName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	}
+}

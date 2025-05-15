@@ -1,0 +1,47 @@
+{
+	"name": "ds_azure_storage_parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_virchu_adls",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FileSystem": {
+				"type": "string"
+			},
+			"Directory": {
+				"type": "string"
+			},
+			"File": {
+				"type": "string"
+			},
+			"CompressionType": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().File",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().Directory",
+					"type": "Expression"
+				},
+				"fileSystem": {
+					"value": "@dataset().FileSystem",
+					"type": "Expression"
+				}
+			},
+			"compressionCodec": {
+				"value": "@dataset().CompressionType",
+				"type": "Expression"
+			}
+		},
+		"schema": []
+	}
+}

@@ -1,0 +1,166 @@
+{
+	"name": "pl_standard_ingest_sql_server",
+	"properties": {
+		"activities": [
+			{
+				"name": "ingest_sqlserver",
+				"description": "-",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": {
+							"value": "@pipeline().parameters.TaskQuery.firstRow.SourceQuery",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_sqlserver_selfhosted",
+						"type": "DatasetReference",
+						"parameters": {
+							"ConnectionSecretName": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.ConnectionSecretName",
+								"type": "Expression"
+							},
+							"PasswordSecretName": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.PasswordSecretName",
+								"type": "Expression"
+							},
+							"UsernameSecretName": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.UsernameSecretName",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_azure_storage_parquet",
+						"type": "DatasetReference",
+						"parameters": {
+							"FileSystem": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.DataLakeInitialContainer",
+								"type": "Expression"
+							},
+							"Directory": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.DataLakeInitialFolder",
+								"type": "Expression"
+							},
+							"File": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.DataLakeInitialFileName",
+								"type": "Expression"
+							},
+							"CompressionType": {
+								"value": "@pipeline().parameters.TaskInfo.firstRow.DataLakeInitialFileCompressionType",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "TaskAuditExecutionUpdate",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "ingest_sqlserver",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[etl].[TaskAuditExecutionUpdate]",
+					"storedProcedureParameters": {
+						"BytesRead": {
+							"value": {
+								"value": "@activity('ingest_sqlserver').output.dataRead",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"BytesWritten": {
+							"value": {
+								"value": "@activity('ingest_sqlserver').output.dataWritten",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"RowsCopied": {
+							"value": {
+								"value": "@activity('ingest_sqlserver').output.rowsCopied",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"RowsRead": {
+							"value": {
+								"value": "@activity('ingest_sqlserver').output.rowsRead",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"TaskAuditKey": {
+							"value": {
+								"value": "@pipeline().parameters.TaskAuditKey",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "Ls_virchu_control_db",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"TaskInfo": {
+				"type": "object"
+			},
+			"TaskQuery": {
+				"type": "object"
+			},
+			"TaskAuditKey": {
+				"type": "int"
+			}
+		},
+		"folder": {
+			"name": "virchu"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-22T13:28:57Z"
+	}
+}
