@@ -1,0 +1,9 @@
+{
+	"name": "adf-hydrator",
+	"location": "southcentralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "28fa259e-21de-4bc6-8f5d-aab0eff0ba7c",
+		"tenantId": "af84ade8-d445-48bf-90db-c07a3180a48e"
+	}
+}
