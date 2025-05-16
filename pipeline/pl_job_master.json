@@ -1,0 +1,324 @@
+{
+	"name": "pl_job_master",
+	"properties": {
+		"description": "Master package that starts a job and triggers child execution pipelines. Specify a job name or leave it set to \"default\". Every task belongs to the \"default\" job, so this would trigger every task to be executed. To only execute specific tasks, create a job in etl.Job and map the tasks in etl.TaskJobBridge",
+		"activities": [
+			{
+				"name": "JobAuditStart",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[etl].[JobAuditStart]",
+						"storedProcedureParameters": {
+							"DataFactoryName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().DataFactory",
+									"type": "Expression"
+								}
+							},
+							"JobName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.JobName",
+									"type": "Expression"
+								}
+							},
+							"PipelineRunID": {
+								"type": "Guid",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					}
+				}
+			},
+			{
+				"name": "GetTaskWorklist",
+				"description": "Get the list of tasks that need to be completed during this job run",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "JobAuditStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[etl].[GetTaskWorklist]",
+						"storedProcedureParameters": {
+							"JobAuditKey": {
+								"type": "Int32",
+								"value": {
+									"value": "@activity('JobAuditStart').output.firstRow.JobAuditKey",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Foreach_TaskAuditKey",
+				"description": "The output of the previous activity should be a list of tasks to complete. Lookup through them, marking the task as started and then executing the work.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "GetTaskWorklist",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetTaskWorklist').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Execute_pl_taskaudit_launcher",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"waitOnCompletion": true,
+								"parameters": {
+									"TaskAuditKey": {
+										"value": "@item().TaskAuditKey",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "TaskAuditFailure",
+							"description": "Normally errors within the prior pipeline should get caught within that same pipeline. In case of catastrophic error, however, catch any errors here and make sure to mark the TaskAudit row as failed.",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Execute_pl_taskaudit_launcher",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[etl].[TaskAuditFailure]",
+								"storedProcedureParameters": {
+									"TaskAuditKey": {
+										"value": {
+											"value": "@item().TaskAuditKey",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"Message": {
+										"value": {
+											"value": "@activity('Execute_pl_taskaudit_launcher').Error.message",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "Ls_virchu_control_db",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "ThrowLoopError",
+							"description": "Throwing an error in the SQL database will cause the parent pipeline to fail",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "TaskAuditFailure",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@string(concat('THROW 60000 , ','''Inner activity failure for outer loop activity. TaskAuditId: ', item(),' Error Message:  ', replace(activity('Execute_pl_taskaudit_launcher').Error.message, '''', ''''''), '''',\n',1;'))",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								}
+							}
+						},
+						{
+							"name": "TaskAuditSuccess",
+							"description": "If the pipeline finished successfully, then mark this TaskAudit row as successfully complete",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Execute_pl_taskaudit_launcher",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[etl].[TaskAuditSuccess]",
+								"storedProcedureParameters": {
+									"TaskAuditKey": {
+										"value": {
+											"value": "@item().TaskAuditKey",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "Ls_virchu_control_db",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "JobAuditComplete",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Foreach_TaskAuditKey",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[etl].[JobAuditComplete]",
+					"storedProcedureParameters": {
+						"JobAuditKey": {
+							"value": {
+								"value": "@activity('JobAuditStart').output.firstRow.JobAuditKey",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "Ls_virchu_control_db",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "ThrowJobError",
+				"description": "Throwing an error in the SQL database will cause the parent pipeline to fail",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Foreach_TaskAuditKey",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@string(concat('THROW 60000 , ','''One or more inner activities caused the job to fail.', '''',\n',1;'))\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"JobName": {
+				"type": "string",
+				"defaultValue": "default"
+			}
+		},
+		"folder": {
+			"name": "Falcon"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-22T13:28:58Z"
+	}
+}
