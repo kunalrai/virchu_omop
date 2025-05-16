@@ -17,7 +17,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "SqlServerSource",
-						"sqlReaderQuery": "SELECT  TABLE_NAME \nFROM [db-btsv-dev-eastus2-001].INFORMATION_SCHEMA.TABLES \nWHERE TABLE_SCHEMA='etl' AND TABLE_TYPE='BASE TABLE';\n",
+						"sqlReaderQuery": "SELECT \n    SCHEMA_NAME(schema_id) AS SchemaName,\n    name AS ProcedureName\nFROM  [db-btsv-dev-eastus2-001].sys.procedures\nORDER BY name;",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
