@@ -1,0 +1,133 @@
+{
+	"name": "pl_taskaudit_launcher",
+	"properties": {
+		"activities": [
+			{
+				"name": "TaskAuditStart",
+				"description": "-",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[etl].[TaskAuditStart]",
+						"storedProcedureParameters": {
+							"TaskAuditKey": {
+								"type": "Int32",
+								"value": {
+									"value": "@pipeline().parameters.TaskAuditKey",
+									"type": "Expression"
+								}
+							}
+						},
+						"partitionOption": "None"
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "ExecuteTaskPipeline",
+				"description": "Execute either the \"Standard\" task pipeline or if this is an \"advanced\" task, then execute the pipeline that corresponds to the AdvancedConfigName assigned to the ConfigName variable",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "Set ConfigName",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@variables('ConfigName')",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Standard",
+							"activities": [
+								{
+									"name": "Execute_pl_standard_ingest",
+									"description": "Run the standard ingestion pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_standard_ingest",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"TaskAuditKey": {
+												"value": "@pipeline().parameters.TaskAuditKey",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Set ConfigName",
+				"description": "Gets the configName output from the TaskAuditStart and apply it to the variable.",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "TaskAuditStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ConfigName",
+					"value": {
+						"value": "@activity('TaskAuditStart').output.firstRow.AdvancedConfigName",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"TaskAuditKey": {
+				"type": "int",
+				"defaultValue": 1
+			}
+		},
+		"variables": {
+			"ConfigName": {
+				"type": "String",
+				"defaultValue": "Standard"
+			},
+			"ErrorMessage": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Falcon"
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-11-22T13:28:58Z"
+	}
+}
