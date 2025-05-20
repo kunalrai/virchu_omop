@@ -18,6 +18,16 @@
 				"typeProperties": {
 					"source": {
 						"type": "SqlServerSource",
+						"sqlReaderStoredProcedureName": "[etl].[TaskAuditStart]",
+						"storedProcedureParameters": {
+							"TaskAuditKey": {
+								"type": "Int32",
+								"value": {
+									"value": "@pipeline().parameters.TaskAuditKey",
+									"type": "Expression"
+								}
+							}
+						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},

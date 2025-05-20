@@ -199,19 +199,14 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
-							"userProperties": [],
 							"typeProperties": {
 								"source": {
-									"type": "AzureSqlSource",
-									"sqlReaderQuery": {
-										"value": "@string(concat('THROW 60000 , ','''Inner activity failure for outer loop activity. TaskAuditId: ', item(),' Error Message:  ', replace(activity('Execute_pl_taskaudit_launcher').Error.message, '''', ''''''), '''',\n',1;'))",
-										"type": "Expression"
-									},
+									"type": "SqlServerSource",
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
 								"dataset": {
-									"referenceName": "Azure_sql_etl",
+									"referenceName": "ETL_onprem",
 									"type": "DatasetReference"
 								}
 							}
@@ -314,16 +309,12 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": {
-							"value": "@string(concat('THROW 60000 , ','''One or more inner activities caused the job to fail.', '''',\n',1;'))\n",
-							"type": "Expression"
-						},
+						"type": "SqlServerSource",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "Azure_sql_etl",
+						"referenceName": "ETL_onprem",
 						"type": "DatasetReference"
 					}
 				}
