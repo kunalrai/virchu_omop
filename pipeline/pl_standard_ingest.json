@@ -529,7 +529,7 @@
 		"parameters": {
 			"TaskAuditKey": {
 				"type": "int",
-				"defaultValue": 199
+				"defaultValue": 1
 			}
 		},
 		"variables": {
