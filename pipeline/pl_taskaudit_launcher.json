@@ -17,18 +17,13 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderStoredProcedureName": "[etl].[TaskAuditStart]",
-						"storedProcedureParameters": {
-							"TaskAuditKey": {
-								"type": "Int32",
-								"value": {
-									"value": "@pipeline().parameters.TaskAuditKey",
-									"type": "Expression"
-								}
-							}
-						},
+						"type": "SqlServerSource",
+						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ETL_onprem",
+						"type": "DatasetReference"
 					},
 					"firstRowOnly": true
 				}

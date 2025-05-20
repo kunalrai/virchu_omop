@@ -24,13 +24,13 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "AzureSqlSource",
+						"type": "SqlServerSource",
 						"sqlReaderStoredProcedureName": "[etl].[GetTaskQuery]",
 						"storedProcedureParameters": {
 							"ETLExtractDatetime": {
-								"type": "DateTime",
+								"type": "Datetime",
 								"value": {
-									"value": "@pipeline().TriggerTime",
+									"value": "@pipeline().TriggerTime\n",
 									"type": "Expression"
 								}
 							},
@@ -42,10 +42,11 @@
 								}
 							}
 						},
+						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "ds_azure_sql_etlcontrol1",
+						"referenceName": "ETL_onprem",
 						"type": "DatasetReference"
 					},
 					"firstRowOnly": true
@@ -151,7 +152,7 @@
 					}
 				},
 				"linkedServiceName": {
-					"referenceName": "Ls_virchu_control_db",
+					"referenceName": "etl_onprem",
 					"type": "LinkedServiceReference"
 				}
 			},
@@ -217,7 +218,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "AzureSqlSource",
+						"type": "SqlServerSource",
 						"sqlReaderStoredProcedureName": "[etl].[GetTaskInfo]",
 						"storedProcedureParameters": {
 							"TaskAuditKey": {
@@ -232,7 +233,7 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "ds_azure_sql_etlcontrol1",
+						"referenceName": "ETL_onprem",
 						"type": "DatasetReference"
 					}
 				}

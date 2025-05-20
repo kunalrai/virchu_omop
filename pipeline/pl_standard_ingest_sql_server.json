@@ -34,26 +34,20 @@
 							"type": "ParquetWriteSettings"
 						}
 					},
-					"enableStaging": false
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
 				},
 				"inputs": [
 					{
-						"referenceName": "ds_sqlserver_selfhosted",
-						"type": "DatasetReference",
-						"parameters": {
-							"ConnectionSecretName": {
-								"value": "@pipeline().parameters.TaskInfo.firstRow.ConnectionSecretName",
-								"type": "Expression"
-							},
-							"PasswordSecretName": {
-								"value": "@pipeline().parameters.TaskInfo.firstRow.PasswordSecretName",
-								"type": "Expression"
-							},
-							"UsernameSecretName": {
-								"value": "@pipeline().parameters.TaskInfo.firstRow.UsernameSecretName",
-								"type": "Expression"
-							}
-						}
+						"referenceName": "onprem_sql",
+						"type": "DatasetReference"
 					}
 				],
 				"outputs": [

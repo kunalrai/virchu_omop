@@ -1,0 +1,12 @@
+{
+	"name": "ETL_onprem",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "etl_onprem",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	}
+}
