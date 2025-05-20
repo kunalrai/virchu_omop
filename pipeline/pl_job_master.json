@@ -199,9 +199,14 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
+							"userProperties": [],
 							"typeProperties": {
 								"source": {
 									"type": "SqlServerSource",
+									"sqlReaderQuery": {
+										"value": "@string(concat('THROW 60000 , ','''Inner activity failure for outer loop activity. TaskAuditId: ', item(),' Error Message:  ', replace(activity('Execute_pl_taskaudit_launcher').Error.message, '''', ''''''), '''',',1;'))",
+										"type": "Expression"
+									},
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
@@ -310,13 +315,18 @@
 				"typeProperties": {
 					"source": {
 						"type": "SqlServerSource",
+						"sqlReaderQuery": {
+							"value": "@concat('THROW 60000, ''One or more inner activities caused the job to fail.'', 1;')",
+							"type": "Expression"
+						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
 					"dataset": {
 						"referenceName": "ETL_onprem",
 						"type": "DatasetReference"
-					}
+					},
+					"firstRowOnly": false
 				}
 			}
 		],
