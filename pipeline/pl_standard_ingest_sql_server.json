@@ -135,7 +135,7 @@
 					}
 				},
 				"linkedServiceName": {
-					"referenceName": "Ls_virchu_control_db",
+					"referenceName": "etl_onprem",
 					"type": "LinkedServiceReference"
 				}
 			}
