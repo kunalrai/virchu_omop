@@ -426,7 +426,7 @@
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "ls_virchu_databricks",
+								"referenceName": "LS_DBX_M",
 								"type": "LinkedServiceReference"
 							}
 						}
