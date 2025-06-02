@@ -21,7 +21,7 @@
 						"sqlReaderStoredProcedureName": "[etl].[TaskAuditStart]",
 						"storedProcedureParameters": {
 							"TaskAuditKey": {
-								"type": "Int32",
+								"type": "Int64",
 								"value": {
 									"value": "pipeline().parameters.TaskAuditKey",
 									"type": "Expression"
