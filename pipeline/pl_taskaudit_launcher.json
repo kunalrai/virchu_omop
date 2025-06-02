@@ -116,8 +116,8 @@
 		],
 		"parameters": {
 			"TaskAuditKey": {
-				"type": "string",
-				"defaultValue": "478"
+				"type": "int",
+				"defaultValue": 478
 			}
 		},
 		"variables": {
