@@ -23,7 +23,7 @@
 							"TaskAuditKey": {
 								"type": "Int64",
 								"value": {
-									"value": "pipeline().parameters.TaskAuditKey()",
+									"value": "478",
 									"type": "Expression"
 								}
 							}
