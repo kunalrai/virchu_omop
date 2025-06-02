@@ -2,7 +2,7 @@
 	"name": "ds_azure_storage_parquet",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_virchu_adls",
+			"referenceName": "LS_OMOPRAWDATA",
 			"type": "LinkedServiceReference"
 		},
 		"parameters": {
