@@ -6,7 +6,14 @@
 				"name": "TaskAuditStart",
 				"description": "-",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set variable1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "7.00:00:00",
 					"retry": 0,
@@ -112,11 +119,28 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "variable1",
+					"value": {
+						"value": "@pipeline().parameters.TaskAuditKey.TaskAuditKey",
+						"type": "Expression"
+					}
+				}
 			}
 		],
 		"parameters": {
 			"TaskAuditKey": {
-				"type": "int"
+				"type": "object"
 			}
 		},
 		"variables": {
@@ -126,6 +150,9 @@
 			},
 			"ErrorMessage": {
 				"type": "String"
+			},
+			"variable1": {
+				"type": "Integer"
 			}
 		},
 		"folder": {
