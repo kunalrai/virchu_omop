@@ -130,7 +130,7 @@
 								"waitOnCompletion": true,
 								"parameters": {
 									"TaskAuditKey": {
-										"value": "@item()",
+										"value": "@item().TaskAuditKey",
 										"type": "Expression"
 									}
 								}
